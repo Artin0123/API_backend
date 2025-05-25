@@ -741,17 +741,27 @@ app.get('/admin', requireAuth, (req, res) => {
                 if (!dateString) return 'Unknown';
                 try {
                     const date = new Date(dateString);
-                    // 加8小時轉換為 GMT+8
-                    const gmt8Date = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-                    const year = gmt8Date.getFullYear();
-                    const month = gmt8Date.getMonth() + 1;
-                    const day = gmt8Date.getDate();
-                    const hours = gmt8Date.getHours();
-                    const minutes = gmt8Date.getMinutes().toString().padStart(2, '0');
-                    const seconds = gmt8Date.getSeconds().toString().padStart(2, '0');
-                    const period = hours >= 12 ? '下午' : '上午';
-                    const displayHours = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
-                    return \`\${year}/\${month}/\${day} \${period}\${displayHours}:\${minutes}:\${seconds}\`;
+                    // 使用 Intl.DateTimeFormat 獲取台北時間
+                    const formatter = new Intl.DateTimeFormat('zh-TW', {
+                        timeZone: 'Asia/Taipei',
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+                    const parts = formatter.formatToParts(date);
+                    const year = parts.find(p => p.type === 'year').value;
+                    const month = parts.find(p => p.type === 'month').value;
+                    const day = parts.find(p => p.type === 'day').value;
+                    const hour = parseInt(parts.find(p => p.type === 'hour').value);
+                    const minute = parts.find(p => p.type === 'minute').value;
+                    const second = parts.find(p => p.type === 'second').value;
+                    const period = hour >= 12 ? '下午' : '上午';
+                    const displayHours = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+                    return \`\${year}/\${month}/\${day} \${period}\${displayHours}:\${minute}:\${second}\`;
                 } catch (e) {
                     return 'Invalid Date';
                 }
