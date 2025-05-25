@@ -1,14 +1,12 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const UAParser = require('ua-parser-js');
 const geoip = require('geoip-lite');
 const requestIp = require('request-ip');
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 const crypto = require('crypto');
 const app = express();
-// 修改連接埠設定，使用 Render 提供的 PORT 環境變數
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 // 簡單的速率限制
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1分鐘
@@ -64,68 +62,57 @@ app.use(cors({
 app.use(requestIp.mw());
 app.use(express.json({ limit: '1mb' })); // 限制請求大小
 app.use(rateLimit); // 應用速率限制
-// 初始化 PostgreSQL 連接池
-// 修改資料庫連接設定
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-// 創建訪客分析表格
-async function initializeDatabase() {
-    try {
-        // 訪客記錄表
-        await pool.query(`CREATE TABLE IF NOT EXISTS visitors (
-            id SERIAL PRIMARY KEY,
-            visitor_number INTEGER UNIQUE NOT NULL,
-            -- IP位址與地理位置
-            ip_address TEXT NOT NULL,
-            country TEXT,
-            city TEXT,
-            -- 時區與時間
-            timezone TEXT,
-            local_time TIMESTAMP,
-            utc_offset INTEGER,
-            -- User Agent 資訊
-            browser_name TEXT,
-            browser_version TEXT,
-            os_name TEXT,
-            os_version TEXT,
-            device_type TEXT,
-            device_vendor TEXT,
-            -- 語言設定
-            navigator_language TEXT,
-            -- 字體資訊
-            fonts_available TEXT,
-            -- 螢幕與顯示
-            screen_width INTEGER,
-            screen_height INTEGER,
-            screen_color_depth INTEGER,
-            device_pixel_ratio REAL,
-            -- 硬體資訊
-            hardware_concurrency INTEGER,
-            -- 其他瀏覽器特徵
-            cookie_enabled BOOLEAN,
-            max_touch_points INTEGER,
-            -- 網路資訊
-            connection_type TEXT,
-            connection_effective_type TEXT,
-            connection_rtt INTEGER,
-            -- 來源類型
-            source_type TEXT DEFAULT 'GET',
-            -- 時間戳
-            last_visit TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            visit_count INTEGER DEFAULT 1
-        )`);
-        // 創建索引
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_visitor_number ON visitors (visitor_number)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_ip ON visitors (ip_address)`);
-        console.log('✅ 資料庫表格初始化完成');
-    } catch (error) {
-        console.error('❌ 資料庫初始化錯誤:', error);
-    }
-}
 // 初始化資料庫
-initializeDatabase();
+const db = new sqlite3.Database('analytics.db');
+// 創建訪客分析表格
+db.serialize(() => {
+    // 訪客記錄表
+    db.run(`CREATE TABLE IF NOT EXISTS visitors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        visitor_number INTEGER UNIQUE NOT NULL,
+        -- IP位址與地理位置
+        ip_address TEXT NOT NULL,
+        country TEXT,
+        city TEXT,
+        -- 時區與時間
+        timezone TEXT,
+        local_time TEXT,
+        utc_offset INTEGER,
+        -- User Agent 資訊
+        browser_name TEXT,
+        browser_version TEXT,
+        os_name TEXT,
+        os_version TEXT,
+        device_type TEXT,
+        device_vendor TEXT,
+        -- 語言設定
+        navigator_language TEXT,
+        -- 字體資訊
+        fonts_available TEXT,
+        -- 螢幕與顯示
+        screen_width INTEGER,
+        screen_height INTEGER,
+        screen_color_depth INTEGER,
+        device_pixel_ratio REAL,
+        -- 硬體資訊
+        hardware_concurrency INTEGER,
+        -- 其他瀏覽器特徵
+        cookie_enabled BOOLEAN,
+        max_touch_points INTEGER,
+        -- 網路資訊
+        connection_type TEXT,
+        connection_effective_type TEXT,
+        connection_rtt INTEGER,
+        -- 來源類型
+        source_type TEXT DEFAULT 'GET',
+        -- 時間戳
+        last_visit DATETIME DEFAULT CURRENT_TIMESTAMP,
+        visit_count INTEGER DEFAULT 1
+    )`);
+    // 創建索引
+    db.run(`CREATE INDEX IF NOT EXISTS idx_visitor_number ON visitors (visitor_number)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_ip ON visitors (ip_address)`);
+});
 // 取得真實 IP 地址
 function getRealIP(req) {
     // 檢查常見的代理標頭
@@ -153,14 +140,15 @@ function generateVisitorKey(clientData) {
         .substring(0, 16);
 }
 // 獲取下一個訪客編號
-async function getNextVisitorNumber() {
-    try {
-        const result = await pool.query('SELECT MAX(visitor_number) as max_number FROM visitors');
-        const maxNumber = result.rows[0]?.max_number;
-        return maxNumber ? maxNumber + 1 : 1;
-    } catch (error) {
-        throw error;
-    }
+function getNextVisitorNumber(callback) {
+    db.get('SELECT MAX(visitor_number) as max_number FROM visitors', (err, row) => {
+        if (err) {
+            callback(err, null);
+        } else {
+            const nextNumber = (row && row.max_number) ? row.max_number + 1 : 1;
+            callback(null, nextNumber);
+        }
+    });
 }
 // 解析客戶端資訊
 function parseClientInfo(req, clientData = {}) {
@@ -257,42 +245,46 @@ app.get('/assets/pixel.png', async (req, res) => {
         const clientInfo = parseClientInfo(req, { ...req.query, source_type: 'GET' });
         const visitorKey = generateVisitorKey(clientInfo);
         // 檢查訪客是否已存在
-        try {
-            const existingVisitor = await pool.query(
-                'SELECT * FROM visitors WHERE ip_address = $1 AND source_type = $2 LIMIT 1',
-                [clientInfo.ip_address, clientInfo.source_type]
-            );
-            if (existingVisitor.rows.length > 0) {
-                // 更新現有訪客
-                await pool.query(`UPDATE visitors SET 
+        db.get('SELECT * FROM visitors WHERE visitor_number = (SELECT visitor_number FROM visitors WHERE ip_address = ? AND source_type = ? LIMIT 1)',
+            [clientInfo.ip_address, clientInfo.source_type], (err, visitor) => {
+                if (visitor) {
+                    // 更新現有訪客
+                    db.run(`UPDATE visitors SET 
                     last_visit = CURRENT_TIMESTAMP,
                     visit_count = visit_count + 1
-                    WHERE visitor_number = $1`, [existingVisitor.rows[0].visitor_number]);
-            } else {
-                // 新訪客 - 獲取下一個訪客編號
-                const visitorNumber = await getNextVisitorNumber();
-                const insertSQL = `INSERT INTO visitors (
-                    visitor_number, ip_address, country, city, timezone, local_time, utc_offset,
-                    browser_name, browser_version, os_name, os_version, device_type, device_vendor,
-                    navigator_language, fonts_available, screen_width, screen_height, screen_color_depth, device_pixel_ratio,
-                    hardware_concurrency, cookie_enabled, max_touch_points,
-                    connection_type, connection_effective_type, connection_rtt, source_type
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`;
-                const values = [
-                    visitorNumber, clientInfo.ip_address, clientInfo.country, clientInfo.city,
-                    clientInfo.timezone, clientInfo.local_time, clientInfo.utc_offset,
-                    clientInfo.browser_name, clientInfo.browser_version,
-                    clientInfo.os_name, clientInfo.os_version, clientInfo.device_type, clientInfo.device_vendor,
-                    clientInfo.navigator_language, clientInfo.fonts_available,
-                    clientInfo.screen_width, clientInfo.screen_height, clientInfo.screen_color_depth, clientInfo.device_pixel_ratio,
-                    clientInfo.hardware_concurrency, clientInfo.cookie_enabled, clientInfo.max_touch_points,
-                    clientInfo.connection_type, clientInfo.connection_effective_type, clientInfo.connection_rtt, clientInfo.source_type
-                ];
-                await pool.query(insertSQL, values);
-            }
-        } catch (error) {
-            console.error('資料庫操作錯誤:', error);
-        }
+                    WHERE visitor_number = ?`, [visitor.visitor_number]);
+                } else {
+                    // 新訪客 - 獲取下一個訪客編號
+                    getNextVisitorNumber((err, visitorNumber) => {
+                        if (err) {
+                            console.error('獲取訪客編號錯誤:', err);
+                            return;
+                        }
+                        const insertSQL = `INSERT INTO visitors (
+                        visitor_number, ip_address, country, city, timezone, local_time, utc_offset,
+                        browser_name, browser_version, os_name, os_version, device_type, device_vendor,
+                        navigator_language, fonts_available, screen_width, screen_height, screen_color_depth, device_pixel_ratio,
+                        hardware_concurrency, cookie_enabled, max_touch_points,
+                        connection_type, connection_effective_type, connection_rtt, source_type
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                        const values = [
+                            visitorNumber, clientInfo.ip_address, clientInfo.country, clientInfo.city,
+                            clientInfo.timezone, clientInfo.local_time, clientInfo.utc_offset,
+                            clientInfo.browser_name, clientInfo.browser_version,
+                            clientInfo.os_name, clientInfo.os_version, clientInfo.device_type, clientInfo.device_vendor,
+                            clientInfo.navigator_language, clientInfo.fonts_available,
+                            clientInfo.screen_width, clientInfo.screen_height, clientInfo.screen_color_depth, clientInfo.device_pixel_ratio,
+                            clientInfo.hardware_concurrency, clientInfo.cookie_enabled, clientInfo.max_touch_points,
+                            clientInfo.connection_type, clientInfo.connection_effective_type, clientInfo.connection_rtt, clientInfo.source_type
+                        ];
+                        db.run(insertSQL, values, function (err) {
+                            if (err) {
+                                console.error('插入資料錯誤:', err);
+                            }
+                        });
+                    });
+                }
+            });
         console.log(`✅ 訪客記錄: ${visitorKey.substring(0, 8)}... - ${clientInfo.ip_address} - ${clientInfo.browser_name}`);
         // 返回 1x1 透明圖片
         res.send(Buffer.from([
@@ -324,55 +316,69 @@ app.post('/api/collect', async (req, res) => {
         });
         const clientInfo = parseClientInfo(req, { ...req.body, source_type: 'POST' });
         // 檢查訪客是否已存在
-        try {
-            const existingVisitor = await pool.query(
-                'SELECT * FROM visitors WHERE ip_address = $1 AND source_type = $2',
-                [clientInfo.ip_address, clientInfo.source_type]
-            );
-            if (existingVisitor.rows.length > 0) {
-                // 更新現有訪客
-                await pool.query(`UPDATE visitors SET 
+        db.get('SELECT * FROM visitors WHERE ip_address = ? AND source_type = ?',
+            [clientInfo.ip_address, clientInfo.source_type], (err, visitor) => {
+                if (err) {
+                    console.error('資料庫查詢錯誤:', err);
+                    return res.status(500).json({ success: false, error: err.message });
+                }
+                if (visitor) {
+                    // 更新現有訪客
+                    db.run(`UPDATE visitors SET 
                     last_visit = CURRENT_TIMESTAMP,
                     visit_count = visit_count + 1
-                    WHERE visitor_number = $1`, [existingVisitor.rows[0].visitor_number]);
-                console.log(`✅ 訪客資料已更新: 訪客編號 ${existingVisitor.rows[0].visitor_number} - ${clientInfo.ip_address} - ${clientInfo.browser_name}`);
-                res.json({
-                    success: true,
-                    visitor_id: existingVisitor.rows[0].visitor_number,
-                    message: '數據已更新'
-                });
-            } else {
-                // 新訪客 - 獲取下一個訪客編號
-                const visitorNumber = await getNextVisitorNumber();
-                const insertSQL = `INSERT INTO visitors (
-                    visitor_number, ip_address, country, city, timezone, local_time, utc_offset,
-                    browser_name, browser_version, os_name, os_version, device_type, device_vendor,
-                    navigator_language, fonts_available, screen_width, screen_height, screen_color_depth, device_pixel_ratio,
-                    hardware_concurrency, cookie_enabled, max_touch_points,
-                    connection_type, connection_effective_type, connection_rtt, source_type
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`;
-                const values = [
-                    visitorNumber, clientInfo.ip_address, clientInfo.country, clientInfo.city,
-                    clientInfo.timezone, clientInfo.local_time, clientInfo.utc_offset,
-                    clientInfo.browser_name, clientInfo.browser_version,
-                    clientInfo.os_name, clientInfo.os_version, clientInfo.device_type, clientInfo.device_vendor,
-                    clientInfo.navigator_language, clientInfo.fonts_available,
-                    clientInfo.screen_width, clientInfo.screen_height, clientInfo.screen_color_depth, clientInfo.device_pixel_ratio,
-                    clientInfo.hardware_concurrency, clientInfo.cookie_enabled, clientInfo.max_touch_points,
-                    clientInfo.connection_type, clientInfo.connection_effective_type, clientInfo.connection_rtt, clientInfo.source_type
-                ];
-                await pool.query(insertSQL, values);
-                console.log(`✅ 新訪客已記錄: 訪客編號 ${visitorNumber} - ${clientInfo.ip_address} - ${clientInfo.browser_name}`);
-                res.json({
-                    success: true,
-                    visitor_id: visitorNumber,
-                    message: '數據已記錄'
-                });
-            }
-        } catch (error) {
-            console.error('資料庫操作錯誤:', error);
-            res.status(500).json({ success: false, error: error.message });
-        }
+                    WHERE visitor_number = ?`, [visitor.visitor_number], (updateErr) => {
+                        if (updateErr) {
+                            console.error('更新訪客錯誤:', updateErr);
+                            return res.status(500).json({ success: false, error: updateErr.message });
+                        }
+                        console.log(`✅ 訪客資料已更新: 訪客編號 ${visitor.visitor_number} - ${clientInfo.ip_address} - ${clientInfo.browser_name}`);
+                        res.json({
+                            success: true,
+                            visitor_id: visitor.visitor_number,
+                            message: '數據已更新'
+                        });
+                    });
+                } else {
+                    // 新訪客 - 獲取下一個訪客編號
+                    getNextVisitorNumber((err, visitorNumber) => {
+                        if (err) {
+                            console.error('獲取訪客編號錯誤:', err);
+                            return res.status(500).json({ success: false, error: err.message });
+                        }
+                        const insertSQL = `INSERT INTO visitors (
+                        visitor_number, ip_address, country, city, timezone, local_time, utc_offset,
+                        browser_name, browser_version, os_name, os_version, device_type, device_vendor,
+                        navigator_language, fonts_available, screen_width, screen_height, screen_color_depth, device_pixel_ratio,
+                        hardware_concurrency, cookie_enabled, max_touch_points,
+                        connection_type, connection_effective_type, connection_rtt, source_type
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                        const values = [
+                            visitorNumber, clientInfo.ip_address, clientInfo.country, clientInfo.city,
+                            clientInfo.timezone, clientInfo.local_time, clientInfo.utc_offset,
+                            clientInfo.browser_name, clientInfo.browser_version,
+                            clientInfo.os_name, clientInfo.os_version, clientInfo.device_type, clientInfo.device_vendor,
+                            clientInfo.navigator_language, clientInfo.fonts_available,
+                            clientInfo.screen_width, clientInfo.screen_height, clientInfo.screen_color_depth, clientInfo.device_pixel_ratio,
+                            clientInfo.hardware_concurrency, clientInfo.cookie_enabled, clientInfo.max_touch_points,
+                            clientInfo.connection_type, clientInfo.connection_effective_type, clientInfo.connection_rtt, clientInfo.source_type
+                        ];
+                        db.run(insertSQL, values, function (err) {
+                            if (err) {
+                                console.error('插入資料錯誤:', err);
+                                return res.status(500).json({ success: false, error: err.message });
+                            } else {
+                                console.log(`✅ 新訪客已記錄: 訪客編號 ${visitorNumber} - ${clientInfo.ip_address} - ${clientInfo.browser_name}`);
+                                res.json({
+                                    success: true,
+                                    visitor_id: visitorNumber,
+                                    message: '數據已記錄'
+                                });
+                            }
+                        });
+                    });
+                }
+            });
     } catch (error) {
         console.error('處理錯誤:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -388,24 +394,20 @@ app.options('/api/collect', (req, res) => {
     res.status(200).end();
 });
 // 訪客數據 API (需要認證)
-app.get('/api/visitors', requireAuth, async (req, res) => {
-    try {
-        const limit = parseInt(req.query.limit) || 50;
-        const offset = parseInt(req.query.offset) || 0;
-        const result = await pool.query(
-            `SELECT * FROM visitors ORDER BY last_visit DESC LIMIT $1 OFFSET $2`,
-            [limit, offset]
-        );
+app.get('/api/visitors', requireAuth, (req, res) => {
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    db.all(`SELECT * FROM visitors ORDER BY last_visit DESC LIMIT ? OFFSET ?`, [limit, offset], (err, visitors) => {
+        if (err) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
         res.json({
             success: true,
-            data: result.rows,
-            count: result.rows.length,
+            data: visitors,
+            count: visitors.length,
             timestamp: new Date().toISOString()
         });
-    } catch (error) {
-        console.error('查詢訪客數據錯誤:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    });
 });
 // POST 測試頁面
 app.get('/test/analytics', (req, res) => {
@@ -873,11 +875,13 @@ app.get('/admin', requireAuth, (req, res) => {
     `);
 });
 // 啟動伺服器
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 伺服器已啟動在連接埠 ${PORT}`);
+const server = app.listen(PORT, '::', () => {
+    const address = server.address();
+    console.log(`🚀 網站分析系統已啟動`);
+    console.log(`📡 伺服器地址: ${address.address}:${address.port}`);
     console.log(`🌐 訪問地址: http://localhost:${PORT}`);
     console.log(`🖼️  像素端點: http://localhost:${PORT}/assets/pixel.png`);
-    console.log(`📊 管理介面: http://localhost:${PORT}/?token=${ADMIN_TOKEN}`);
+    console.log(`📊 管理介面: http://localhost:${PORT}`);
     console.log(`🧪 測試頁面:`);
     console.log(`   - 分析測試: http://localhost:${PORT}/api/analytics`);
     console.log(`   - 收集測試: http://localhost:${PORT}/test/analytics`);

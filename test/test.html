@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>追蹤測試頁面</title>
+        <style>
+            body {
+                font-family: 'Microsoft JhengHei', Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                background: #f5f5f5;
+            }
+
+            .container {
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .info-box {
+                background: #e3f2fd;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 15px 0;
+                border-left: 4px solid #2196f3;
+            }
+
+            .code-box {
+                background: #2d3748;
+                color: #e2e8f0;
+                padding: 15px;
+                border-radius: 5px;
+                font-family: 'Courier New', monospace;
+                overflow-x: auto;
+                margin: 15px 0;
+            }
+
+            .btn {
+                background: #2196f3;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                margin: 5px;
+                transition: background 0.3s;
+            }
+
+            .btn:hover {
+                background: #1976d2;
+            }
+
+            .status {
+                padding: 10px;
+                border-radius: 5px;
+                margin: 10px 0;
+                display: none;
+            }
+
+            .success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+
+            .error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="container">
+            <h1>🎯 精簡追蹤系統測試</h1>
+
+            <div class="info-box">
+                <h3>📊 系統特色</h3>
+                <ul>
+                    <li><strong>防偽造：</strong>基於瀏覽器指紋識別真實訪客</li>
+                    <li><strong>去重機制：</strong>同一訪客不會重複計算</li>
+                    <li><strong>頻率限制：</strong>防止快速刷新偽造訪問</li>
+                    <li><strong>隱私保護：</strong>IP 地址經過雜湊處理</li>
+                </ul>
+            </div>
+
+            <h3>🖼️ 基本圖片追蹤</h3>
+            <p>最簡單的追蹤方式，只需要一行 HTML：</p>
+            <div class="code-box">
+                &lt;img src="http://localhost:3000/track.png" width="1" height="1" style="display:none;" /&gt;
+            </div>
+            <div id="basic-status" class="status"></div>
+
+            <h3>⚡ JavaScript 進階追蹤</h3>
+            <p>包含更多客戶端資訊的追蹤方式：</p>
+            <div class="code-box">
+                &lt;script&gt;
+                (function() {
+                const img = new Image();
+                const params = new URLSearchParams({
+                url: window.location.href,
+                title: document.title,
+                sw: screen.width,
+                sh: screen.height,
+                cd: screen.colorDepth,
+                lang: navigator.language,
+                tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                ct: navigator.connection ? navigator.connection.effectiveType : 'unknown'
+                });
+                img.src = 'http://localhost:3000/track.png?' + params.toString();
+                })();
+                &lt;/script&gt;
+            </div>
+
+            <button class="btn" onclick="sendAdvancedTracking()">🚀 發送進階追蹤</button>
+            <div id="advanced-status" class="status"></div>
+
+            <h3>🔄 測試功能</h3>
+            <p>測試不同的追蹤場景：</p>
+            <button class="btn" onclick="testMultipleRequests()">📈 測試多次請求（防偽造）</button>
+            <button class="btn" onclick="testPageReload()">🔄 測試頁面重載</button>
+            <button class="btn" onclick="openDashboard()">📊 打開管理介面</button>
+            <div id="test-status" class="status"></div>
+
+            <h3>📋 收集的資訊</h3>
+            <div class="info-box">
+                <ul>
+                    <li><strong>地理位置：</strong>國家、地區、城市、經緯度</li>
+                    <li><strong>瀏覽器：</strong>名稱、版本、引擎</li>
+                    <li><strong>作業系統：</strong>名稱、版本、架構</li>
+                    <li><strong>設備：</strong>類型、螢幕解析度、時區</li>
+                    <li><strong>網路：</strong>連接類型、語言設定</li>
+                    <li><strong>頁面：</strong>URL、標題、來源頁面</li>
+                </ul>
+            </div>
+
+            <h3>🔒 隱私保護</h3>
+            <div class="info-box">
+                <p><strong>重要：</strong>本系統採用以下隱私保護措施：</p>
+                <ul>
+                    <li>IP 地址經過雜湊處理，無法還原</li>
+                    <li>僅收集技術性資訊，不涉及個人隱私</li>
+                    <li>使用瀏覽器指紋而非 Cookie</li>
+                    <li>所有資料僅用於統計分析</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 基本圖片追蹤（自動執行） -->
+        <img src="http://localhost:3000/track.png?page=test&auto=true" width="1" height="1" style="display:none;"
+            alt="" />
+
+        <script>
+            // 顯示狀態訊息
+            function showStatus(elementId, message, type = 'success') {
+                const element = document.getElementById(elementId);
+                element.textContent = message;
+                element.className = `status ${type}`;
+                element.style.display = 'block';
+
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 3000);
+            }
+
+            // 進階追蹤
+            function sendAdvancedTracking() {
+                const img = new Image();
+                const params = new URLSearchParams({
+                    url: window.location.href,
+                    title: document.title,
+                    sw: screen.width,
+                    sh: screen.height,
+                    cd: screen.colorDepth,
+                    lang: navigator.language,
+                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    ct: navigator.connection ? navigator.connection.effectiveType : 'unknown',
+                    manual: 'true'
+                });
+
+                img.onload = () => {
+                    showStatus('advanced-status', '✅ 進階追蹤資訊已發送！');
+                };
+
+                img.onerror = () => {
+                    showStatus('advanced-status', '❌ 追蹤失敗，請確認伺服器運行狀態', 'error');
+                };
+
+                img.src = 'http://localhost:3000/track.png?' + params.toString();
+            }
+
+            // 測試多次請求（驗證防偽造機制）
+            function testMultipleRequests() {
+                let successCount = 0;
+                let totalRequests = 5;
+
+                showStatus('test-status', '🔄 正在發送多次請求測試防偽造機制...');
+
+                for (let i = 0; i < totalRequests; i++) {
+                    setTimeout(() => {
+                        const img = new Image();
+                        img.onload = () => {
+                            successCount++;
+                            if (successCount === totalRequests) {
+                                showStatus('test-status', `✅ 已發送 ${totalRequests} 次請求，檢查控制台查看防偽造日誌`);
+                            }
+                        };
+                        img.src = `http://localhost:3000/track.png?test=multiple&seq=${i}&ts=${Date.now()}`;
+                    }, i * 100); // 每100ms發送一次
+                }
+            }
+
+            // 測試頁面重載
+            function testPageReload() {
+                if (confirm('這將重新載入頁面來測試追蹤功能，確定要繼續嗎？')) {
+                    window.location.reload();
+                }
+            }
+
+            // 打開管理介面
+            function openDashboard() {
+                window.open('http://localhost:3000', '_blank');
+            }
+
+            // 頁面載入完成後的初始化
+            window.addEventListener('load', () => {
+                showStatus('basic-status', '✅ 基本圖片追蹤已自動執行');
+                console.log('📊 追蹤系統已初始化');
+                console.log('🔍 打開網路面板可以看到追蹤請求');
+            });
+
+            // 監聽頁面可見性變化
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    console.log('📱 頁面重新可見，可能觸發新的追蹤');
+                }
+            });
+        </script>
+    </body>
+
+</html>
