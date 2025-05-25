@@ -78,7 +78,6 @@
     <body>
         <div class="container">
             <h1>🎯 精簡追蹤系統測試</h1>
-
             <div class="info-box">
                 <h3>📊 系統特色</h3>
                 <ul>
@@ -88,14 +87,12 @@
                     <li><strong>隱私保護：</strong>IP 地址經過雜湊處理</li>
                 </ul>
             </div>
-
             <h3>🖼️ 基本圖片追蹤</h3>
             <p>最簡單的追蹤方式，只需要一行 HTML：</p>
             <div class="code-box">
                 &lt;img src="http://localhost:3000/track.png" width="1" height="1" style="display:none;" /&gt;
             </div>
             <div id="basic-status" class="status"></div>
-
             <h3>⚡ JavaScript 進階追蹤</h3>
             <p>包含更多客戶端資訊的追蹤方式：</p>
             <div class="code-box">
@@ -116,17 +113,14 @@
                 })();
                 &lt;/script&gt;
             </div>
-
             <button class="btn" onclick="sendAdvancedTracking()">🚀 發送進階追蹤</button>
             <div id="advanced-status" class="status"></div>
-
             <h3>🔄 測試功能</h3>
             <p>測試不同的追蹤場景：</p>
             <button class="btn" onclick="testMultipleRequests()">📈 測試多次請求（防偽造）</button>
             <button class="btn" onclick="testPageReload()">🔄 測試頁面重載</button>
             <button class="btn" onclick="openDashboard()">📊 打開管理介面</button>
             <div id="test-status" class="status"></div>
-
             <h3>📋 收集的資訊</h3>
             <div class="info-box">
                 <ul>
@@ -138,7 +132,6 @@
                     <li><strong>頁面：</strong>URL、標題、來源頁面</li>
                 </ul>
             </div>
-
             <h3>🔒 隱私保護</h3>
             <div class="info-box">
                 <p><strong>重要：</strong>本系統採用以下隱私保護措施：</p>
@@ -150,11 +143,9 @@
                 </ul>
             </div>
         </div>
-
         <!-- 基本圖片追蹤（自動執行） -->
         <img src="http://localhost:3000/track.png?page=test&auto=true" width="1" height="1" style="display:none;"
             alt="" />
-
         <script>
             // 顯示狀態訊息
             function showStatus(elementId, message, type = 'success') {
@@ -162,12 +153,10 @@
                 element.textContent = message;
                 element.className = `status ${type}`;
                 element.style.display = 'block';
-
                 setTimeout(() => {
                     element.style.display = 'none';
                 }, 3000);
             }
-
             // 進階追蹤
             function sendAdvancedTracking() {
                 const img = new Image();
@@ -182,25 +171,19 @@
                     ct: navigator.connection ? navigator.connection.effectiveType : 'unknown',
                     manual: 'true'
                 });
-
                 img.onload = () => {
                     showStatus('advanced-status', '✅ 進階追蹤資訊已發送！');
                 };
-
                 img.onerror = () => {
                     showStatus('advanced-status', '❌ 追蹤失敗，請確認伺服器運行狀態', 'error');
                 };
-
                 img.src = 'http://localhost:3000/track.png?' + params.toString();
             }
-
             // 測試多次請求（驗證防偽造機制）
             function testMultipleRequests() {
                 let successCount = 0;
                 let totalRequests = 5;
-
                 showStatus('test-status', '🔄 正在發送多次請求測試防偽造機制...');
-
                 for (let i = 0; i < totalRequests; i++) {
                     setTimeout(() => {
                         const img = new Image();
@@ -214,26 +197,22 @@
                     }, i * 100); // 每100ms發送一次
                 }
             }
-
             // 測試頁面重載
             function testPageReload() {
                 if (confirm('這將重新載入頁面來測試追蹤功能，確定要繼續嗎？')) {
                     window.location.reload();
                 }
             }
-
             // 打開管理介面
             function openDashboard() {
                 window.open('http://localhost:3000', '_blank');
             }
-
             // 頁面載入完成後的初始化
             window.addEventListener('load', () => {
                 showStatus('basic-status', '✅ 基本圖片追蹤已自動執行');
                 console.log('📊 追蹤系統已初始化');
                 console.log('🔍 打開網路面板可以看到追蹤請求');
             });
-
             // 監聽頁面可見性變化
             document.addEventListener('visibilitychange', () => {
                 if (!document.hidden) {
