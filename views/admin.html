@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>網站分析系統</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="/css/admin.css">
+    </head>
+
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>📊 網站分析系統</h1>
+                <p>訪客行為分析與統計</p>
+            </div>
+            <div class="section">
+                <div class="section-header">
+                    <span>👥 訪客數據分析</span>
+                    <button class="btn" onclick="loadVisitors()">🔄 重新載入</button>
+                    <button class="btn" onclick="testPixel()">🧪 測試像素</button>
+                </div>
+                <div class="section-content">
+                    <div class="overflow-scroll">
+                        <table id="visitors-table">
+                            <thead>
+                                <tr>
+                                    <th>訪客編號</th>
+                                    <th>IPv4 地址</th>
+                                    <th>國家 / 城市</th>
+                                    <th>時區</th>
+                                    <th>瀏覽器</th>
+                                    <th>作業系統</th>
+                                    <th>設備</th>
+                                    <th>螢幕解析度</th>
+                                    <th>語言</th>
+                                    <th>可用字體</th>
+                                    <th>色彩深度</th>
+                                    <th>CPU執行緒</th>
+                                    <th>Cookie啟用</th>
+                                    <th>觸控點數</th>
+                                    <th>本地時間</th>
+                                    <th>網路類型</th>
+                                    <th>網路效能</th>
+                                    <th>網路延遲</th>
+                                    <th>來源</th>
+                                    <th>訪問次數</th>
+                                    <th>最後訪問</th>
+                                </tr>
+                            </thead>
+                            <tbody id="visitors-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="/js/admin.js"></script>
+    </body>
+
+</html>

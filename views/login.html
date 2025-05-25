@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>網站分析系統</title>
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="/css/login.css">
+    </head>
+
+    <body>
+        <div class="login-container">
+            <div class="header">
+                <h1>📊 網站分析系統</h1>
+                <p>請輸入訪問令牌</p>
+            </div>
+            <form onsubmit="login(event)">
+                <div class="input-group">
+                    <input type="password" id="token" placeholder="訪問令牌" required>
+                </div>
+                <button type="submit" class="btn">登入</button>
+            </form>
+            <div id="error" class="error"></div>
+        </div>
+        <script src="/js/login.js"></script>
+    </body>
+
+</html>
