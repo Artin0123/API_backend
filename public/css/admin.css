@@ -114,3 +114,24 @@ td[title] {
     border-radius: 3px;
     font-size: 0.8em;
 }
+
+/* 排序功能樣式 */
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+th.sortable:hover {
+    background: #e9ecef;
+}
+
+.sort-arrow {
+    font-size: 0.8em;
+    margin-left: 5px;
+    color: #666;
+}
+
+.sort-arrow-inactive {
+    color: #ccc;
+}

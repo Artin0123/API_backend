@@ -1,4 +1,4 @@
-let currentSortColumn = 'last_visit';
+let currentSortColumn = 'visitor_number';
 let currentSortDirection = 'desc';
 let visitorsData = []; // 用於存儲從 API 獲取的原始數據
 
@@ -109,9 +109,16 @@ function updateTable(sortedData) {
         const osDisplay = truncateText(`${visitor.os_name} ${visitor.os_version}`, 25);
         const countryDisplay = truncateText(`${visitor.country} / ${visitor.city}`, 25);
 
-        // 使用前端重新編號的 visitor_display_number
+        // 根據當前排序方向計算顯示編號
+        let displayNumber;
+        if (currentSortColumn === 'visitor_number') {
+            displayNumber = currentSortDirection === 'asc' ? index + 1 : sortedData.length - index;
+        } else {
+            displayNumber = index + 1;
+        }
+
         row.innerHTML = `
-            <td><span class="visitor-number">#${index + 1}</span></td>
+            <td><span class="visitor-number">#${displayNumber}</span></td>
             <td>${visitor.ip_address || '未知'}</td>
             <td title="${visitor.country}/${visitor.city}">${countryDisplay}</td>
             <td title="${timezoneDisplay}">${truncateText(timezoneDisplay, 30)}</td>
@@ -137,14 +144,35 @@ function updateTable(sortedData) {
 
 function sortData(column, direction) {
     visitorsData.sort((a, b) => {
-        let valA = a[column];
-        let valB = b[column];
+        let valA, valB;
 
-        if (column === 'last_visit') {
-            valA = new Date(valA);
-            valB = new Date(valB);
+        // 特殊處理國家/城市排序：先比較國家，再比較城市
+        if (column === 'country') {
+            const countryA = (a.country || '').toLowerCase();
+            const countryB = (b.country || '').toLowerCase();
+            const cityA = (a.city || '').toLowerCase();
+            const cityB = (b.city || '').toLowerCase();
+
+            if (countryA !== countryB) {
+                valA = countryA;
+                valB = countryB;
+            } else {
+                valA = cityA;
+                valB = cityB;
+            }
+        } else if (column === 'visitor_number') {
+            // 訪客編號按照原始的數據庫ID排序
+            valA = a.id || a.visitor_number || 0;
+            valB = b.id || b.visitor_number || 0;
+        } else if (column === 'last_visit') {
+            valA = new Date(a[column]);
+            valB = new Date(b[column]);
+        } else {
+            valA = a[column];
+            valB = b[column];
         }
 
+        // 處理字串類型
         if (typeof valA === 'string') {
             valA = valA.toLowerCase();
             valB = valB.toLowerCase();
@@ -161,6 +189,28 @@ function sortData(column, direction) {
     updateTable(visitorsData);
 }
 
+function updateSortArrows() {
+    // 重置所有箭頭為雙向箭頭
+    document.querySelectorAll('#visitors-table th .sort-arrow').forEach(arrow => {
+        arrow.textContent = '⇅';
+        arrow.className = 'sort-arrow sort-arrow-inactive';
+    });
+
+    // 更新當前排序欄位的箭頭
+    const currentTh = Array.from(document.querySelectorAll('#visitors-table th.sortable')).find(th => {
+        const columnName = th.getAttribute('onclick').match(/sortTable\('(.+?)'\)/)[1];
+        return columnName === currentSortColumn;
+    });
+
+    if (currentTh) {
+        const arrowSpan = currentTh.querySelector('.sort-arrow');
+        if (arrowSpan) {
+            arrowSpan.textContent = currentSortDirection === 'asc' ? '▲' : '▼';
+            arrowSpan.className = 'sort-arrow';
+        }
+    }
+}
+
 function sortTable(column) {
     if (currentSortColumn === column) {
         currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
@@ -168,18 +218,8 @@ function sortTable(column) {
         currentSortColumn = column;
         currentSortDirection = 'asc';
     }
-    // 更新箭頭圖示
-    document.querySelectorAll('#visitors-table th .sort-arrow').forEach(arrow => {
-        arrow.textContent = ''; // 清除所有箭頭
-    });
-    const currentTh = Array.from(document.querySelectorAll('#visitors-table th')).find(th => th.textContent.includes(columnMapping[column]));
-    if (currentTh) {
-        const arrowSpan = currentTh.querySelector('.sort-arrow');
-        if (arrowSpan) {
-            arrowSpan.textContent = currentSortDirection === 'asc' ? ' ▲' : ' ▼';
-        }
-    }
 
+    updateSortArrows();
     sortData(column, currentSortDirection);
 }
 
@@ -200,15 +240,8 @@ async function loadVisitors() {
         const data = await response.json();
         if (data.success) {
             visitorsData = data.data; // 儲存原始數據
+            updateSortArrows(); // 初始化箭頭顯示
             sortData(currentSortColumn, currentSortDirection); // 初始排序並更新表格
-            // 更新初始排序箭頭
-            const initialTh = Array.from(document.querySelectorAll('#visitors-table th')).find(th => th.textContent.includes(columnMapping[currentSortColumn]));
-            if (initialTh) {
-                const arrowSpan = initialTh.querySelector('.sort-arrow');
-                if (arrowSpan) {
-                    arrowSpan.textContent = currentSortDirection === 'asc' ? ' ▲' : ' ▼';
-                }
-            }
         }
     } catch (error) {
         console.error('載入失敗:', error);

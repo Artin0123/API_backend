@@ -25,9 +25,12 @@
                         <table id="visitors-table">
                             <thead>
                                 <tr>
-                                    <th onclick="sortTable('visitor_number')">訪客編號 <span class="sort-arrow"></span></th>
-                                    <th onclick="sortTable('ip_address')">IPv4 地址 <span class="sort-arrow"></span></th>
-                                    <th onclick="sortTable('country')">國家 / 城市 <span class="sort-arrow"></span></th>
+                                    <th class="sortable" onclick="sortTable('visitor_number')">訪客編號 <span
+                                            class="sort-arrow">▼</span></th>
+                                    <th class="sortable" onclick="sortTable('ip_address')">IPv4 地址 <span
+                                            class="sort-arrow sort-arrow-inactive">⇅</span></th>
+                                    <th class="sortable" onclick="sortTable('country')">國家 / 城市 <span
+                                            class="sort-arrow sort-arrow-inactive">⇅</span></th>
                                     <th>時區</th>
                                     <th>瀏覽器</th>
                                     <th>作業系統</th>
@@ -42,9 +45,12 @@
                                     <th>網路類型</th>
                                     <th>網路效能</th>
                                     <th>網路延遲</th>
-                                    <th onclick="sortTable('source_type')">來源 <span class="sort-arrow"></span></th>
-                                    <th onclick="sortTable('visit_count')">訪問次數 <span class="sort-arrow"></span></th>
-                                    <th onclick="sortTable('last_visit')">最後訪問 <span class="sort-arrow"></span></th>
+                                    <th class="sortable" onclick="sortTable('source_type')">來源 <span
+                                            class="sort-arrow sort-arrow-inactive">⇅</span></th>
+                                    <th class="sortable" onclick="sortTable('visit_count')">訪問次數 <span
+                                            class="sort-arrow sort-arrow-inactive">⇅</span></th>
+                                    <th class="sortable" onclick="sortTable('last_visit')">最後訪問 <span
+                                            class="sort-arrow sort-arrow-inactive">⇅</span></th>
                                 </tr>
                             </thead>
                             <tbody id="visitors-tbody">
