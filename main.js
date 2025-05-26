@@ -4,10 +4,19 @@ const cors = require('cors');
 const UAParser = require('ua-parser-js');
 const geoip = require('geoip-lite');
 const requestIp = require('request-ip');
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+// 指示 pg 將 TIMESTAMP (OID 1114) 欄位值視為 UTC
+// types.builtins.TIMESTAMP 是 TIMESTAMP without time zone 的 OID
+types.setTypeParser(types.builtins.TIMESTAMP, (stringValue) => {
+    // 檢查 stringValue 是否已經包含 'Z' 或時區偏移，以避免重複添加
+    if (stringValue.endsWith('Z') || /[\+\-]\d{2}:\d{2}$/.test(stringValue) || /[\+\-]\d{4}$/.test(stringValue)) {
+        return new Date(stringValue);
+    }
+    return new Date(stringValue + 'Z'); // 附加 'Z' 表示這是 UTC 時間
+});
 const app = express();
 // 修改連接埠設定，使用 Render 提供的 PORT 環境變數
 const PORT = process.env.PORT || 3000;

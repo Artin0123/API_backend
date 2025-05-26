@@ -61,6 +61,9 @@ th {
     font-weight: bold;
     position: sticky;
     top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+    border-right: 1px solid #dee2e6;
 }
 
 tr:hover {
@@ -95,8 +98,11 @@ td[title] {
 }
 
 .overflow-scroll {
-    overflow-x: auto;
+    overflow: auto;
     max-height: 600px;
+    position: relative;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
 }
 
 .source-get {
@@ -119,11 +125,24 @@ td[title] {
 th.sortable {
     cursor: pointer;
     user-select: none;
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 th.sortable:hover {
     background: #e9ecef;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* 確保非排序欄位也有一致的樣式 */
+th:not(.sortable) {
+    background: #f8f9fa;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .sort-arrow {
