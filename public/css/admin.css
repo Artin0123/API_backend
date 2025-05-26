@@ -1,5 +1,5 @@
 body {
-    font-family: 'Microsoft JhengHei', Arial, sans-serif;
+    font-family: 'Microsoft YaHei', 'Microsoft JhengHei', Arial, sans-serif;
     margin: 20px;
     background: #f5f7fa;
 }
@@ -7,15 +7,6 @@ body {
 .container {
     max-width: 1800px;
     margin: 0 auto;
-}
-
-.header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 30px;
-    border-radius: 15px;
-    margin-bottom: 30px;
-    text-align: center;
 }
 
 .section {
@@ -99,7 +90,7 @@ td[title] {
 
 .overflow-scroll {
     overflow: auto;
-    max-height: 600px;
+    max-height: 800px;
     position: relative;
     border: 1px solid #dee2e6;
     border-radius: 8px;

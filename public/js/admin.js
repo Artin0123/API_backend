@@ -2,7 +2,6 @@ let currentSortColumn = 'visitor_number';
 let currentSortDirection = 'desc';
 let visitorsData = []; // 用於存儲從 API 獲取的原始數據
 let idToDisplayNumberMap = new Map(); // 用於存儲原始ID到顯示編號的映射
-
 // 輔助函數：截斷文字並添加省略號
 function truncateText(text, maxLength) {
     if (!text || text === 'Unknown' || text === ' - ') return text;
@@ -60,11 +59,9 @@ function formatTimezone(utcOffset, timezone) {
     }
     return ' - ';
 }
-
 function updateTable(sortedData) {
     const tbody = document.getElementById('visitors-tbody');
     tbody.innerHTML = '';
-
     // 為排序後的數據重新分配連續編號
     sortedData.forEach((visitor, index) => {
         const row = tbody.insertRow();
@@ -111,14 +108,11 @@ function updateTable(sortedData) {
         // 作業系統處理
         const osDisplay = truncateText(`${visitor.os_name} ${visitor.os_version}`, 25);
         const countryDisplay = truncateText(`${visitor.country} / ${visitor.city}`, 25);
-
         // 使用映射關係獲取連續編號
         const originalId = visitor.visitor_number || visitor.id;
         const displayNumber = idToDisplayNumberMap.get(originalId) || 0;
-
         // 為調試：在控制台顯示原始ID和顯示編號的對應關係
         // console.log(`原始ID: ${originalId}, 顯示編號: ${displayNumber}, IP: ${visitor.ip_address}`);
-
         row.innerHTML = `
             <td><span class="visitor-number">#${displayNumber}</span></td>
             <td>${visitor.ip_address || '未知'}</td>
@@ -142,29 +136,23 @@ function updateTable(sortedData) {
             <td>${formatTimeGMT8(visitor.last_visit)}</td>
         `;
     });
-
     // console.log(`✅ 表格更新完成，當前排序：${currentSortColumn} ${currentSortDirection}，共 ${sortedData.length} 筆記錄`);
 }
-
 function sortData(column, direction) {
     // console.log(`🔄 開始排序：欄位=${column}, 方向=${direction}`);
-
     // 排序前記錄前3筆資料的ID
     // console.log('排序前前3筆:', visitorsData.slice(0, 3).map(v => ({
     //     id: v.visitor_number || v.id,
     //     ip: v.ip_address
     // })));
-
     visitorsData.sort((a, b) => {
         let valA, valB;
-
         // 特殊處理國家/城市排序：先比較國家，再比較城市
         if (column === 'country') {
             const countryA = (a.country || '').toLowerCase();
             const countryB = (b.country || '').toLowerCase();
             const cityA = (a.city || '').toLowerCase();
             const cityB = (b.city || '').toLowerCase();
-
             if (countryA !== countryB) {
                 valA = countryA;
                 valB = countryB;
@@ -183,13 +171,11 @@ function sortData(column, direction) {
             valA = a[column];
             valB = b[column];
         }
-
         // 處理字串類型
         if (typeof valA === 'string') {
             valA = valA.toLowerCase();
             valB = valB.toLowerCase();
         }
-
         if (valA < valB) {
             return direction === 'asc' ? -1 : 1;
         }
@@ -198,29 +184,24 @@ function sortData(column, direction) {
         }
         return 0;
     });
-
     // 排序後記錄前3筆資料的ID
     // console.log('排序後前3筆:', visitorsData.slice(0, 3).map(v => ({
     //     id: v.visitor_number || v.id,
     //     ip: v.ip_address
     // })));
-
     updateTable(visitorsData);
 }
-
 function updateSortArrows() {
     // 重置所有箭頭為雙向箭頭
     document.querySelectorAll('#visitors-table th .sort-arrow').forEach(arrow => {
         arrow.textContent = '⇅';
         arrow.className = 'sort-arrow sort-arrow-inactive';
     });
-
     // 更新當前排序欄位的箭頭
     const currentTh = Array.from(document.querySelectorAll('#visitors-table th.sortable')).find(th => {
         const columnName = th.getAttribute('onclick').match(/sortTable\('(.+?)'\)/)[1];
         return columnName === currentSortColumn;
     });
-
     if (currentTh) {
         const arrowSpan = currentTh.querySelector('.sort-arrow');
         if (arrowSpan) {
@@ -229,7 +210,6 @@ function updateSortArrows() {
         }
     }
 }
-
 function sortTable(column) {
     if (currentSortColumn === column) {
         currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
@@ -237,11 +217,9 @@ function sortTable(column) {
         currentSortColumn = column;
         currentSortDirection = 'asc';
     }
-
     updateSortArrows();
     sortData(column, currentSortDirection);
 }
-
 // 欄位名稱映射，用於更新箭頭圖示
 const columnMapping = {
     'visitor_number': '訪客編號',
@@ -251,7 +229,6 @@ const columnMapping = {
     'visit_count': '訪問次數',
     'last_visit': '最後訪問'
 };
-
 async function loadVisitors() {
     try {
         const token = new URLSearchParams(window.location.search).get('token');
@@ -282,16 +259,13 @@ loadVisitors();
 function createIdMapping(data) {
     // 獲取所有唯一的ID並按升序排列
     const allIds = [...new Set(data.map(v => v.visitor_number || v.id))].sort((a, b) => a - b);
-
     // 建立映射：原始ID → 連續編號(1開始)
     idToDisplayNumberMap.clear();
     allIds.forEach((id, index) => {
         idToDisplayNumberMap.set(id, index + 1);
     });
-
     // console.log('🗺️ ID映射關係:', Array.from(idToDisplayNumberMap.entries()));
 }
-
 // 初始載入
 loadVisitors();
 // 每30秒自動重新載入

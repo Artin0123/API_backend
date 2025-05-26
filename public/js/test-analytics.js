@@ -1,17 +1,14 @@
 function clearResults() {
     document.getElementById('result').textContent = '點擊按鈕開始測試...';
 }
-
 function showLoading(message) {
     document.getElementById('result').innerHTML = '<span class="loading">' + message + '</span>';
 }
-
 function showResult(data, isError = false) {
     const resultDiv = document.getElementById('result');
     const className = isError ? 'error' : 'success';
     resultDiv.innerHTML = '<span class="' + className + '">' + JSON.stringify(data, null, 2) + '</span>';
 }
-
 // 收集瀏覽器資訊
 function collectBrowserInfo() {
     return {
@@ -34,7 +31,6 @@ function collectBrowserInfo() {
         page_title: document.title
     };
 }
-
 async function testAnalytics() {
     showLoading('🔄 正在發送數據到 /api/analytics...');
     try {
@@ -59,7 +55,6 @@ async function testAnalytics() {
         }, true);
     }
 }
-
 async function testCollect() {
     showLoading('🔄 正在發送數據到 /api/collect...');
     try {
