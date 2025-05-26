@@ -96,6 +96,7 @@ async function initializeDatabase() {
             city TEXT,
             -- 時區與時間
             timezone TEXT,
+            local_time TIMESTAMP,
             utc_offset INTEGER,
             -- User Agent 資訊
             browser_name TEXT,
@@ -200,9 +201,11 @@ function parseClientInfo(req, clientData = {}) {
     if (!isGET && clientData.cookie_enabled !== undefined) {
         cookieEnabled = clientData.cookie_enabled;
     }
-    // UTC offset 處理
+    // 本地時間處理
+    let localTime = new Date().toISOString();
     let utcOffset = new Date().getTimezoneOffset();
-    if (!isGET && clientData.utc_offset !== undefined) {
+    if (!isGET && clientData.local_time && clientData.utc_offset !== undefined) {
+        localTime = clientData.local_time;
         utcOffset = clientData.utc_offset;
     }
     // 網路類型處理 - Unknown 改為 " - "
@@ -219,6 +222,7 @@ function parseClientInfo(req, clientData = {}) {
         city: geo.city || 'Unknown',
         // 時區與時間
         timezone: timezone,
+        local_time: localTime,
         utc_offset: utcOffset,
         // User Agent 資訊
         user_agent: userAgent,
@@ -281,15 +285,15 @@ app.get('/assets/pixel.png', async (req, res) => {
                 // 新訪客 - 獲取下一個訪客編號
                 const visitorNumber = await getNextVisitorNumber();
                 const insertSQL = `INSERT INTO visitors (
-                    visitor_number, ip_address, country, city, timezone, utc_offset,
+                    visitor_number, ip_address, country, city, timezone, local_time, utc_offset,
                     browser_name, browser_version, os_name, os_version, device_type, device_vendor,
                     navigator_language, fonts_available, screen_width, screen_height, screen_color_depth, device_pixel_ratio,
                     hardware_concurrency, cookie_enabled, max_touch_points,
                     connection_type, connection_effective_type, connection_rtt, source_type
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`;
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`;
                 const values = [
                     visitorNumber, clientInfo.ip_address, clientInfo.country, clientInfo.city,
-                    clientInfo.timezone, clientInfo.utc_offset,
+                    clientInfo.timezone, clientInfo.local_time, clientInfo.utc_offset,
                     clientInfo.browser_name, clientInfo.browser_version,
                     clientInfo.os_name, clientInfo.os_version, clientInfo.device_type, clientInfo.device_vendor,
                     clientInfo.navigator_language, clientInfo.fonts_available,
@@ -354,15 +358,15 @@ app.post('/api/collect', async (req, res) => {
                 // 新訪客 - 獲取下一個訪客編號
                 const visitorNumber = await getNextVisitorNumber();
                 const insertSQL = `INSERT INTO visitors (
-                    visitor_number, ip_address, country, city, timezone, utc_offset,
+                    visitor_number, ip_address, country, city, timezone, local_time, utc_offset,
                     browser_name, browser_version, os_name, os_version, device_type, device_vendor,
                     navigator_language, fonts_available, screen_width, screen_height, screen_color_depth, device_pixel_ratio,
                     hardware_concurrency, cookie_enabled, max_touch_points,
                     connection_type, connection_effective_type, connection_rtt, source_type
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`;
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`;
                 const values = [
                     visitorNumber, clientInfo.ip_address, clientInfo.country, clientInfo.city,
-                    clientInfo.timezone, clientInfo.utc_offset,
+                    clientInfo.timezone, clientInfo.local_time, clientInfo.utc_offset,
                     clientInfo.browser_name, clientInfo.browser_version,
                     clientInfo.os_name, clientInfo.os_version, clientInfo.device_type, clientInfo.device_vendor,
                     clientInfo.navigator_language, clientInfo.fonts_available,
@@ -501,4 +505,4 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🧪 測試頁面:`);
     console.log(`   - 分析測試: http://localhost:${PORT}/api/analytics`);
     console.log(`   - 收集測試: http://localhost:${PORT}/test/analytics`);
-});
+}); 
